@@ -57,4 +57,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy out --project-name=suresh --branch=${{ github.ref_name }} --commit-hash=${{ github.sha }}
+          command: pages deploy out --project-name=chillbroz005-portfolio --branch=${{ github.ref_name }} --commit-hash=${{ github.sha }}

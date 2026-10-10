@@ -17,7 +17,7 @@ Set private `AUTH_PEPPER` and `INITIAL_ADMIN_PASSWORD` values in `.dev.vars` bef
 
 ## Cloudflare setup
 
-Create a D1 database named `portfolio-auth` and a Cloudflare Pages project named `suresh`, with `main` as the production branch. The deployment workflow applies the migrations and uploads both the static site and Pages Functions. The site address is `https://suresh.pages.dev`.
+Use the existing Cloudflare Pages project named `chillbroz005-portfolio`, with `main` as the production branch. The deployment workflow applies the migrations and uploads both the static site and Pages Functions. The site address is `https://chillbroz005-portfolio.pages.dev`. Make sure the project's Git integration is not also deploying a different repository, or its builds can replace this deployment.
 
 Add these GitHub Actions repository secrets:
 
