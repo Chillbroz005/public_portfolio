@@ -17,6 +17,8 @@ export interface SqliteDatabase {
 export interface Env {
   DB: SqliteDatabase;
   AUTH_PEPPER: string;
+  GITHUB_OWNER: string;
+  GITHUB_REPOSITORY: string;
   GITHUB_CONTENTS_TOKEN: string;
   RESEND_API_KEY: string;
   RESEND_FROM: string;

@@ -1,33 +1,38 @@
 # Suresh Ganesan Portfolio
 
-Public portfolio for Suresh Ganesan, with resume-aligned career details, profile photo, PDF download, GitHub activity, and a server-backed editor with password recovery and optional GitHub publishing.
+Next.js static portfolio deployed to Cloudflare Pages, with Pages Functions for the server-backed editor, password recovery, and optional GitHub publishing. Authentication and editor data use Cloudflare D1.
 
-## Run locally
+## Local development
 
 Use Node.js 24 and npm 10 or newer:
 
-```bash
+```powershell
 npm ci
+Copy-Item .env.example .dev.vars
+npm run cf:d1:local
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`. Next.js Route Handlers provide the API and a local SQLite database is created from the SQL migrations on first request.
+Set private `AUTH_PEPPER` and `INITIAL_ADMIN_PASSWORD` values in `.dev.vars` before opening the local preview. Wrangler stores its local D1 data under `.wrangler`, which is ignored by Git.
 
-## Server configuration
+## Cloudflare setup
 
-Copy `.env.example` to `.env.local` and set unique private values for the admin password and authentication pepper. Never commit real secrets.
+Create a D1 database named `portfolio-auth` and a Cloudflare Pages project named `suresh`, with `main` as the production branch. The deployment workflow applies the migrations and uploads both the static site and Pages Functions. The site address is `https://suresh.pages.dev`.
+
+Add these GitHub Actions repository secrets:
+
+- `CLOUDFLARE_API_TOKEN`: token with Cloudflare Pages edit and D1 edit permissions.
+- `CLOUDFLARE_ACCOUNT_ID`: your Cloudflare account ID.
+- `CLOUDFLARE_D1_DATABASE_ID`: the ID of `portfolio-auth`.
+
+Add these values directly in Cloudflare Pages → Settings → Variables and Secrets before using the protected features:
 
 - `AUTH_PEPPER`: a private random value with at least 32 bytes of entropy.
-- `INITIAL_ADMIN_PASSWORD`: a temporary initial password of at least 12 characters; remove it after first login.
-- `SQLITE_DB_PATH`: optional SQLite file path. Public hosting must use persistent storage; the default is `data/portfolio.sqlite`.
-- `SITE_ORIGIN`: the public HTTPS origin used to build password reset links.
-- `ADMIN_EMAIL`, `RESEND_API_KEY`, `RESEND_FROM`: optional email reset configuration.
-- `GITHUB_OWNER`, `GITHUB_REPOSITORY`, `GITHUB_CONTENTS_TOKEN`: optional GitHub publishing configuration. Restrict the token to the target repository with Contents read/write access.
+- `INITIAL_ADMIN_PASSWORD`: a temporary password of at least 12 characters; remove it after the first successful login.
+- `GITHUB_CONTENTS_TOKEN`: repository-scoped token for the editor's GitHub publishing feature.
+- `ADMIN_EMAIL`, `RESEND_API_KEY`, and `RESEND_FROM`: verified sender settings for email password recovery.
+- `SITE_ORIGIN`: public HTTPS URL for reset links. If omitted, the app uses the incoming request origin.
 
-Recovery answers and admin credentials are stored as salted HMAC-SHA256 verifiers in SQLite, not browser storage or GitHub. Login and recovery attempts are rate-limited in the database.
+After the D1 database, Pages project, and Actions secrets are set up, pushes to `main` run `.github/workflows/deploy-cloudflare.yml`.
 
-## Public hosting
-
-This app runs on a Node.js server with persistent disk storage so editor, recovery, and publishing data can survive restarts. Static-only hosting such as GitHub Pages cannot run its API or database. Build with `npm run build` and start with `npm start` on a Node.js 24 host with persistent storage. Configure server environment variables in the host's private settings.
-
-The portfolio details, photo, and resume in this copy use Suresh Ganesan's supplied profile and resume information. Review them before publishing publicly.
+The profile, photo, and resume contain Suresh Ganesan's supplied information and are intended for public release.

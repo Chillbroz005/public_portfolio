@@ -1,5 +1,3 @@
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS admin_credentials (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   password_salt TEXT NOT NULL,

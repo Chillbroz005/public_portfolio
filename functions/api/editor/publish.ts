@@ -1,7 +1,5 @@
 import { currentSession, isSameOriginMutation, json, readJson, type ServerContext } from "../../_shared/server";
 
-const OWNER = process.env.GITHUB_OWNER || "";
-const REPOSITORY = process.env.GITHUB_REPOSITORY || "";
 const BRANCH = "main";
 const ALLOWED_PATHS = new Set(["src/data/profile.ts", "public/resume.pdf", "public/profile-photo.png"]);
 const MAX_FILE_BASE64_LENGTH = 7_000_000;
@@ -13,7 +11,9 @@ type PublishBody = {
 export async function onRequestPost({ request, env }: ServerContext): Promise<Response> {
   if (!isSameOriginMutation(request)) return json({ error: "Request rejected." }, 403);
   if (!await currentSession(request, env)) return json({ error: "Sign in again to publish changes." }, 401);
-  if (!env.GITHUB_CONTENTS_TOKEN || !OWNER || !REPOSITORY) return json({ error: "GitHub publishing is not configured on the server." }, 503);
+  const owner = env.GITHUB_OWNER || "";
+  const repository = env.GITHUB_REPOSITORY || "";
+  if (!env.GITHUB_CONTENTS_TOKEN || !owner || !repository) return json({ error: "GitHub publishing is not configured on the server." }, 503);
 
   const body = await readJson<PublishBody>(request, 8_000_000);
   if (!Array.isArray(body?.files) || body.files.length < 2 || body.files.length > 3) return json({ error: "The publish request is invalid." }, 400);
@@ -27,7 +27,7 @@ export async function onRequestPost({ request, env }: ServerContext): Promise<Re
   }
   if (!paths.has("src/data/profile.ts") || !paths.has("public/resume.pdf")) return json({ error: "The profile and resume must be published together." }, 400);
 
-  const apiBase = `https://api.github.com/repos/${OWNER}/${REPOSITORY}`;
+  const apiBase = `https://api.github.com/repos/${owner}/${repository}`;
   const headers = {
     Authorization: `Bearer ${env.GITHUB_CONTENTS_TOKEN}`,
     Accept: "application/vnd.github+json",
