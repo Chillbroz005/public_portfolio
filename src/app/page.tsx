@@ -495,7 +495,7 @@ export default function Home() {
       {/* Navigation */}
       <header className="nav">
         <a className="brand" href="#top" aria-label="Jordan Taylor demo home">
-          SG<span>.</span>
+          JT<span>.</span>
         </a>
         <nav className="desktop-nav" aria-label="Primary navigation">
           {nav.map(([id, label]) => (
@@ -576,10 +576,27 @@ export default function Home() {
                 ⚙️ LIVE ADMIN & EDITOR MODE
               </span>
               <span style={{ color: "var(--muted)", fontSize: "12px" }}>
-                Do not refresh while editing — refresh reloads the live data.
+                Edit any details, then choose “Download Edited Resume” to include your changes. Do not refresh while editing — refresh reloads the live data.
               </span>
             </div>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <button
+                onClick={() => void downloadDemoResume()}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 14px",
+                  background: "var(--accent)",
+                  border: "1px solid var(--accent)",
+                  borderRadius: "10px",
+                  color: "var(--on-accent)",
+                  fontSize: "13px",
+                  fontWeight: 800
+                }}
+              >
+                <Download size={15} /> Download Edited Resume
+              </button>
               <button
                 onClick={handleAddExperience}
                 style={{
