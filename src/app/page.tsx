@@ -477,6 +477,32 @@ export default function Home() {
     } catch (error: any) { setPushStatus("error"); setPushMessage(`Publish failed: ${error.message}`); }
   };
 
+  // Always generate a fictional demo resume. Never expose the original resume PDF in the public demo.
+  const downloadDemoResume = async () => {
+    try {
+      const resumeBytes = await generateResumePdf({
+        profile: defaultProfile,
+        experience: defaultExperience,
+        skills: defaultSkills,
+        software: defaultSoftware,
+        tools: defaultTools,
+        engagements: defaultEngagements,
+        education: defaultEducation,
+        certifications: defaultCertifications,
+        projects: defaultProjects
+      }, "");
+      const blob = new Blob([new Uint8Array(resumeBytes).buffer as ArrayBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "fictional-demo-resume.pdf";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("The demo resume could not be generated. Please try again.");
+    }
+  };
+
   return (
     <main id="top">
       <div className="scrollProgress" style={{ width: `${progress}%` }} aria-hidden="true" />
@@ -1329,9 +1355,9 @@ export default function Home() {
           ↑
         </button>
       )}
-      <a className="float-resume" href={`${BASE}/resume.pdf`} download>
+      <button className="float-resume" type="button" onClick={() => void downloadDemoResume()}>
         <Download size={16} /> Resume PDF
-      </a>
+      </button>
 
       {/* Server-backed editor sign-in */}
       <AnimatePresence>
@@ -1397,9 +1423,9 @@ export default function Home() {
               </div>
 
               <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                <a className="primary-btn" href={`${BASE}/resume.pdf`} download>
+                <button className="primary-btn" type="button" onClick={() => void downloadDemoResume()}>
                   <Download size={16} /> Download Resume
-                </a>
+                </button>
                 <a className="secondary-btn" href={profileData.linkedin} target="_blank" rel="noreferrer">
                   <Linkedin size={16} /> LinkedIn
                 </a>
