@@ -246,9 +246,8 @@ export default function Home() {
     setThemePreferencesLoaded(true);
   }, []);
 
-  // Editing is public and local-only. Drafts are deliberately not restored on reload.
+  // Drafts are deliberately not restored on reload. Editing starts only when the visitor clicks Edit Mode.
   useEffect(() => {
-    setIsEditor(true);
     try {
       ["profile", "experience", "skills", "software", "tools", "engagements", "education", "certifications", "projects"].forEach(key => localStorage.removeItem(`abc_edited_${key}`));
       ["abc_github_token", "abc_auth_key", "abc_recovery_questions", "abc_recovery_code"].forEach(key => localStorage.removeItem(key));
