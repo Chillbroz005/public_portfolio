@@ -249,9 +249,9 @@ export default function Home() {
   // Load local editing drafts and establish the server session.
   useEffect(() => {
     try {
-      const keys = ["profile", "experience", "skills", "software", "tools", "engagements", "education", "certifications", "projects"];
-      const setters = [setProfileData, setExpList, setSkillsList, setSoftwareList, setToolsList, setEngagementList, setEducationList, setCertificationList, setProjectList] as Array<(value: any) => void>;
-      keys.forEach((key, index) => { const value = localStorage.getItem(`abc_edited_${key}`); if (value) setters[index](JSON.parse(value)); });
+      // This public demo must always use fictional repository and profile data.
+      // Remove any older locally saved profile drafts so real personal details cannot reappear.
+      ["profile", "experience", "skills", "software", "tools", "engagements", "education", "certifications", "projects"].forEach(key => localStorage.removeItem(`abc_edited_${key}`));
       ["abc_github_token", "abc_auth_key", "abc_recovery_questions", "abc_recovery_code"].forEach(key => localStorage.removeItem(key));
     } catch {}
     void apiJson("/api/auth/session").then(data => setIsEditor(data.authenticated === true)).catch(() => setIsEditor(false));
@@ -483,7 +483,7 @@ export default function Home() {
 
       {/* Navigation */}
       <header className="nav">
-        <a className="brand" href="#top" aria-label="Suresh Ganesan home">
+        <a className="brand" href="#top" aria-label="Jordan Taylor demo home">
           SG<span>.</span>
         </a>
         <nav className="desktop-nav" aria-label="Primary navigation">
