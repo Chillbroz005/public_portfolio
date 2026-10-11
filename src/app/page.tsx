@@ -77,19 +77,23 @@ async function apiJson(path: string, options: RequestInit = {}) {
 }
 
 async function pngDataFromBlob(blob: Blob): Promise<{ dataUrl: string; base64: string }> {
-  const bitmap = await createImageBitmap(blob);
+  const objectUrl = URL.createObjectURL(blob);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const loadedImage = new Image();
+    loadedImage.onload = () => resolve(loadedImage);
+    loadedImage.onerror = () => reject(new Error("Your browser could not load the profile photo."));
+    loadedImage.src = objectUrl;
+  }).finally(() => URL.revokeObjectURL(objectUrl));
   const maxDimension = 1200;
-  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
   const context = canvas.getContext("2d");
   if (!context) {
-    bitmap.close();
     throw new Error("Your browser could not prepare the profile photo.");
   }
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   const optimizedBlob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(result => result ? resolve(result) : reject(new Error("Could not convert the profile photo.")), "image/png");
