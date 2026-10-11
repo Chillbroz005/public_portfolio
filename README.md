@@ -1,4 +1,4 @@
-# Suresh Ganesan Portfolio
+# Fictional Portfolio Demo
 
 Next.js static portfolio deployed to Cloudflare Pages, with Pages Functions for the server-backed editor, password recovery, and optional GitHub publishing. Authentication and editor data use Cloudflare D1.
 
@@ -35,4 +35,4 @@ Add these values directly in Cloudflare Pages → Settings → Variables and Sec
 
 After the D1 database, Pages project, and Actions secrets are set up, pushes to `main` run `.github/workflows/deploy-cloudflare.yml`.
 
-The profile, photo, and resume contain Suresh Ganesan's supplied information and are intended for public release.
+The public site uses fictional demonstration profile data. The profile image is a generic “YOUR PROFILE” logo. The downloadable resume is a fictional sample aligned to the visible website profile; publishing profile edits through the editor also regenerates the resume from the current profile data. All identity, contact, employer, education, award and project details shown are sample data.
