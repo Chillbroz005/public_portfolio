@@ -45,7 +45,7 @@ export type RecoveryRow = {
 
 const SESSION_SECONDS = 8 * 60 * 60;
 
-export function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {
+export function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
