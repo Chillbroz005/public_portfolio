@@ -491,7 +491,7 @@ export default function Home() {
         certifications: defaultCertifications,
         projects: defaultProjects
       }, "");
-      const blob = new Blob([resumeBytes], { type: "application/pdf" });
+      const blob = new Blob([new Uint8Array(resumeBytes).buffer as ArrayBuffer], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
