@@ -125,10 +125,24 @@ export const certifications = [
 
 export const projects = [
   {
-    title: "Procurement KPI Dashboard (Sample)",
+    title: "Supplier Performance Dashboard (Fictional Demo)",
     category: "Procurement",
-    description: "Illustrative dashboard concept for supplier delivery, spend and open-order tracking.",
-    technologies: ["Spreadsheet Analysis", "Power BI (Sample)"],
-    github: "https://example.com/sample-project"
+    description: "A fictional concept for tracking on-time delivery, supplier quality, and sourcing performance.",
+    technologies: ["Power BI (Demo)", "Sample Data"],
+    github: "https://example.invalid/supplier-dashboard"
+  },
+  {
+    title: "Inventory Insights Tool (Fictional Demo)",
+    category: "Automation",
+    description: "A demonstration concept for highlighting stock movement and replenishment trends using synthetic data.",
+    technologies: ["Python (Demo)", "Synthetic Data"],
+    github: "https://example.invalid/inventory-insights"
+  },
+  {
+    title: "Project Cost Tracker (Fictional Demo)",
+    category: "Other",
+    description: "A sample interface concept for comparing planned and actual project costs without real business records.",
+    technologies: ["Spreadsheet Analysis", "Demo Dataset"],
+    github: "https://example.invalid/project-cost-tracker"
   }
 ];

@@ -71,25 +71,29 @@ async function apiJson(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const response = await fetch(path, { ...options, credentials: "same-origin", headers });
-  const body = await response.json().catch(() => ({}));
+  const body = (await response.json().catch(() => ({}))) as { error?: string; [key: string]: any };
   if (!response.ok) throw new Error(body.error || `Request failed (${response.status}).`);
   return body;
 }
 
 async function pngDataFromBlob(blob: Blob): Promise<{ dataUrl: string; base64: string }> {
-  const bitmap = await createImageBitmap(blob);
+  const objectUrl = URL.createObjectURL(blob);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const loadedImage = document.createElement("img");
+    loadedImage.onload = () => resolve(loadedImage);
+    loadedImage.onerror = () => reject(new Error("Your browser could not load the profile photo."));
+    loadedImage.src = objectUrl;
+  }).finally(() => URL.revokeObjectURL(objectUrl));
   const maxDimension = 1200;
-  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
   const context = canvas.getContext("2d");
   if (!context) {
-    bitmap.close();
     throw new Error("Your browser could not prepare the profile photo.");
   }
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   const optimizedBlob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(result => result ? resolve(result) : reject(new Error("Could not convert the profile photo.")), "image/png");
@@ -242,22 +246,12 @@ export default function Home() {
     setThemePreferencesLoaded(true);
   }, []);
 
-  // Load local editing drafts and establish the server session.
+  // Drafts are deliberately not restored on reload. Editing starts only when the visitor clicks Edit Mode.
   useEffect(() => {
     try {
-      const keys = ["profile", "experience", "skills", "software", "tools", "engagements", "education", "certifications", "projects"];
-      const setters = [setProfileData, setExpList, setSkillsList, setSoftwareList, setToolsList, setEngagementList, setEducationList, setCertificationList, setProjectList] as Array<(value: any) => void>;
-      keys.forEach((key, index) => { const value = localStorage.getItem(`abc_edited_${key}`); if (value) setters[index](JSON.parse(value)); });
+      ["profile", "experience", "skills", "software", "tools", "engagements", "education", "certifications", "projects"].forEach(key => localStorage.removeItem(`abc_edited_${key}`));
       ["abc_github_token", "abc_auth_key", "abc_recovery_questions", "abc_recovery_code"].forEach(key => localStorage.removeItem(key));
     } catch {}
-    void apiJson("/api/auth/session").then(data => setIsEditor(data.authenticated === true)).catch(() => setIsEditor(false));
-    const match = window.location.hash.match(/^#reset=(.+)$/);
-    if (match) {
-      const token = decodeURIComponent(match[1]);
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      setResetToken(token); setResetMethod("email"); setResetMode(true);
-      void apiJson("/api/auth/reset/challenge", { method: "POST", body: JSON.stringify({ token }) }).then(data => { setResetQuestion(data.question || ""); setResetQuestion2(data.question2 || ""); }).catch(error => setResetMessage(error.message));
-    }
   }, []);
 
   const totalExperienceFormatted = useMemo(() => {
@@ -351,9 +345,8 @@ export default function Home() {
     ...Array.from(new Set([...projectFilters.slice(1), ...projectList.map(project => project.category).filter(Boolean)]))
   ], [projectList]);
 
-  const handleEditModeToggle = async () => {
-    if (isEditor) { await apiJson("/api/auth/logout", { method: "POST" }).catch(() => undefined); setIsEditor(false); }
-    else { setAuthError(""); setShowAuthModal(true); }
+  const handleEditModeToggle = () => {
+    setIsEditor(current => !current);
   };
   const handleAuthSubmit = async () => {
     setAuthError("");
@@ -431,7 +424,7 @@ export default function Home() {
       localStorage.setItem("abc_edited_education", JSON.stringify(educationList));
       localStorage.setItem("abc_edited_certifications", JSON.stringify(certificationList));
       localStorage.setItem("abc_edited_projects", JSON.stringify(projectList));
-      alert("✅ Changes saved to your browser! Click 'Push to GitHub' to publish them live.");
+      alert("Changes saved locally in this browser. Download to keep a copy. Refreshing reloads the live version and discards these edits.");
     } catch (e) {
       alert("Error saving locally.");
     }
@@ -452,25 +445,47 @@ export default function Home() {
     setOpen(0);
   };
 
-  // Publish updates through the authenticated Pages Function; the GitHub credential stays server-side.
-  const pushToGitHub = async () => {
-    if (!isEditor) { setShowAuthModal(true); return; }
-    setPushStatus("pushing"); setPushMessage("Preparing your profile, photo, and resume...");
+  // GitHub publishing is not enabled from the public editor.
+  const pushToGitHub = () => {
+    setPushStatus("error");
+    setPushMessage("GitHub configuration needed.");
+  };
+
+  // Always generate a fictional demo resume. Never expose the original resume PDF in the public demo.
+  const downloadDemoResume = async () => {
     try {
-      const profileForPublish = selectedPhoto ? { ...profileData, profilePhotoVersion: Date.now() } : profileData;
-      const updatedCode = `export const profile = ${JSON.stringify(profileForPublish, null, 2)} as const;\n\nexport type ExperienceItem = {\n  company: string;\n  role: string;\n  location: string;\n  dates: string;\n  startDate: string;\n  endDate: string | null;\n  bullets: string[];\n};\n\nexport const experience: ExperienceItem[] = ${JSON.stringify(expList, null, 2)};\n\nexport const engagements = ${JSON.stringify(engagementList, null, 2)};\n\nexport const skills = ${JSON.stringify(skillsList, null, 2)};\n\nexport const software = ${JSON.stringify(softwareList, null, 2)};\n\nexport const tools = ${JSON.stringify(toolsList, null, 2)};\n\nexport const education = ${JSON.stringify(educationList, null, 2)};\n\nexport const certifications = ${JSON.stringify(certificationList, null, 2)};\n\nexport const projects = ${JSON.stringify(projectList, null, 2)};\n`;
-      const photoData = selectedPhoto ? await pngDataFromBlob(selectedPhoto) : await loadCurrentPhotoData();
-      const resumeBytes = await generateResumePdf({ profile: profileForPublish, experience: expList, skills: skillsList, software: softwareList, tools: toolsList, engagements: engagementList, education: educationList, certifications: certificationList, projects: projectList }, photoData.dataUrl);
-      const files: Array<{ path: string; bytes: Uint8Array }> = [{ path: "src/data/profile.ts", bytes: new TextEncoder().encode(updatedCode) }, { path: "public/resume.pdf", bytes: resumeBytes }];
-      if (selectedPhoto) files.push({ path: "public/profile-photo.png", bytes: base64ToBytes(photoData.base64) });
-      setPushMessage("Publishing the files through the server...");
-      await apiJson("/api/editor/publish", { method: "POST", body: JSON.stringify({ files: files.map(file => ({ path: file.path, contentBase64: bytesToBase64(file.bytes) })) }) });
-      setProfileData(profileForPublish);
-      try {
-        localStorage.setItem("abc_edited_profile", JSON.stringify(profileForPublish)); localStorage.setItem("abc_edited_experience", JSON.stringify(expList)); localStorage.setItem("abc_edited_skills", JSON.stringify(skillsList)); localStorage.setItem("abc_edited_software", JSON.stringify(softwareList)); localStorage.setItem("abc_edited_tools", JSON.stringify(toolsList)); localStorage.setItem("abc_edited_engagements", JSON.stringify(engagementList)); localStorage.setItem("abc_edited_education", JSON.stringify(educationList)); localStorage.setItem("abc_edited_certifications", JSON.stringify(certificationList)); localStorage.setItem("abc_edited_projects", JSON.stringify(projectList));
-      } catch {}
-      setPushStatus("success"); setPushMessage(`Published the profile and matching resume${selectedPhoto ? ", including your new photo" : ""}.`);
-    } catch (error: any) { setPushStatus("error"); setPushMessage(`Publish failed: ${error.message}`); }
+      const photoData = isEditor && selectedPhoto ? await pngDataFromBlob(selectedPhoto) : await loadCurrentPhotoData();
+      const resumeBytes = await generateResumePdf(isEditor ? {
+        profile: profileData,
+        experience: expList,
+        skills: skillsList,
+        software: softwareList,
+        tools: toolsList,
+        engagements: engagementList,
+        education: educationList,
+        certifications: certificationList,
+        projects: projectList
+      } : {
+        profile: { ...defaultProfile, phones: [...defaultProfile.phones], regions: [...defaultProfile.regions], industries: [...defaultProfile.industries], functions: [...defaultProfile.functions], achievements: [...defaultProfile.achievements] },
+        experience: defaultExperience,
+        skills: defaultSkills,
+        software: defaultSoftware,
+        tools: defaultTools,
+        engagements: defaultEngagements,
+        education: defaultEducation,
+        certifications: defaultCertifications,
+        projects: defaultProjects
+      }, photoData.dataUrl);
+      const blob = new Blob([new Uint8Array(resumeBytes).buffer as ArrayBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "fictional-demo-resume.pdf";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("The demo resume could not be generated. Please try again.");
+    }
   };
 
   return (
@@ -479,8 +494,8 @@ export default function Home() {
 
       {/* Navigation */}
       <header className="nav">
-        <a className="brand" href="#top" aria-label="Suresh Ganesan home">
-          SG<span>.</span>
+        <a className="brand" href="#top" aria-label="Jordan Taylor demo home">
+          JT<span>.</span>
         </a>
         <nav className="desktop-nav" aria-label="Primary navigation">
           {nav.map(([id, label]) => (
@@ -528,14 +543,6 @@ export default function Home() {
             <UserRound className="recruiterBtn-icon" size={15} />
             <span className="recruiterBtn-label">30-Second Profile</span>
           </button>
-          <button
-            className="editor-settings-btn"
-            onClick={() => void openEditorSettings()}
-            aria-label="Editor settings"
-            title="Editor settings"
-          >
-            <Settings size={16} />
-          </button>
           <button className="mobileOnly" onClick={() => setMobile(!mobile)} aria-label="Open mobile navigation">
             {mobile ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -569,10 +576,27 @@ export default function Home() {
                 ⚙️ LIVE ADMIN & EDITOR MODE
               </span>
               <span style={{ color: "var(--muted)", fontSize: "12px" }}>
-                Edit fields and publish directly to GitHub!
+                Edit any details, then choose “Download Edited Resume” to include your changes. Do not refresh while editing — refresh reloads the live data.
               </span>
             </div>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <button
+                onClick={() => void downloadDemoResume()}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 14px",
+                  background: "var(--accent)",
+                  border: "1px solid var(--accent)",
+                  borderRadius: "10px",
+                  color: "var(--on-accent)",
+                  fontSize: "13px",
+                  fontWeight: 800
+                }}
+              >
+                <Download size={15} /> Download Edited Resume
+              </button>
               <button
                 onClick={handleAddExperience}
                 style={{
@@ -624,22 +648,6 @@ export default function Home() {
                 }}
               >
                 <Sparkles size={15} /> Push to GitHub 🚀
-              </button>
-              <button
-                onClick={() => void openEditorSettings()}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "8px 12px",
-                  background: "var(--panel)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "10px",
-                  color: "var(--muted)",
-                  fontSize: "13px"
-                }}
-              >
-                <Key size={14} /> Editor Settings
               </button>
             </div>
           </motion.div>
@@ -1325,40 +1333,9 @@ export default function Home() {
           ↑
         </button>
       )}
-      <a className="float-resume" href={`${BASE}/resume.pdf`} download>
+      <button className="float-resume" type="button" onClick={() => void downloadDemoResume()}>
         <Download size={16} /> Resume PDF
-      </a>
-
-      {/* Server-backed editor sign-in */}
-      <AnimatePresence>
-        {showAuthModal && <div className="modal-backdrop"><motion.div className="recruiter-modal" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
-          <button className="modal-close" onClick={() => setShowAuthModal(false)} aria-label="Close"><X size={18} /></button>
-          <div style={{ textAlign: "center", marginBottom: "1.5rem" }}><Lock size={40} style={{ color: "var(--accent)", margin: "0 auto 10px" }} /><h2 style={{ fontSize: "24px", fontWeight: 900 }}>Editor Sign In</h2><p style={{ color: "var(--muted)", fontSize: "14px" }}>Your password is verified by the site server.</p></div>
-          <input type="password" autoComplete="current-password" style={{ width: "100%", padding: "12px", background: "var(--bg)", border: "1px solid var(--accent)", borderRadius: "10px", color: "var(--text)" }} value={authPassword} placeholder="Admin password" onKeyDown={e => e.key === "Enter" && void handleAuthSubmit()} onChange={e => setAuthPassword(e.target.value)} />
-          {authError && <p role="alert" style={{ color: "#ef4444", fontSize: "13px" }}>{authError}</p>}
-          <button className="forgot-key-link" type="button" onClick={() => { setShowAuthModal(false); setResetMode(true); setResetMethod("choose"); setResetMessage(""); setResetToken(""); }}>Forgot password?</button>
-          <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "1rem" }}><button className="secondary-btn" onClick={() => setShowAuthModal(false)}>Cancel</button><button className="primary-btn" onClick={() => void handleAuthSubmit()}>Sign In</button></div>
-        </motion.div></div>}
-      </AnimatePresence>
-      {/* Password recovery by email or security question */}
-      <AnimatePresence>
-        {resetMode && <div className="modal-backdrop"><motion.div className="recruiter-modal" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
-          <button className="modal-close" onClick={() => setResetMode(false)} aria-label="Close"><X size={18} /></button><span className="eyebrow">PASSWORD RECOVERY</span><h2 style={{ fontSize: "24px", fontWeight: 900, margin: "8px 0 12px" }}>Reset editor password</h2>
-          {resetMethod === "choose" && !resetToken && <><p style={{ color: "var(--muted)", fontSize: "13px" }}>Choose how you want to recover your password.</p><div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "14px" }}><button className="secondary-btn" onClick={() => void requestPasswordReset()}>Send email reset link</button><button className="secondary-btn" onClick={() => void chooseQuestionRecovery()}>Use recovery question</button></div></>}
-          {resetMethod === "email" && !resetToken && <p style={{ color: "var(--muted)", fontSize: "13px" }}>A reset link will be sent to the configured email address.</p>}
-          {(resetToken || resetMethod === "question") && <><p style={{ color: "var(--muted)", fontSize: "13px" }}>{resetToken ? "Email link verified. Answer both recovery questions to continue." : "Answer both recovery questions to reset the password."}</p><label style={{ display: "grid", gap: "6px", marginTop: "12px" }}>{resetQuestion}<input type="password" autoComplete="off" value={resetAnswer} onChange={event => setResetAnswer(event.target.value)} /></label>{resetQuestion2 && <label style={{ display: "grid", gap: "6px", marginTop: "12px" }}>{resetQuestion2}<input type="password" autoComplete="off" value={resetAnswer2} onChange={event => setResetAnswer2(event.target.value)} /></label>}<label style={{ display: "grid", gap: "6px", marginTop: "12px" }}>New password<input type="password" autoComplete="new-password" value={resetPassword} onChange={event => setResetPassword(event.target.value)} /></label><label style={{ display: "grid", gap: "6px", marginTop: "12px" }}>Confirm new password<input type="password" autoComplete="new-password" value={resetConfirmPassword} onChange={event => setResetConfirmPassword(event.target.value)} /></label></>}
-          {resetMessage && <p role="status" style={{ color: "var(--muted)", fontSize: "13px", marginTop: "12px" }}>{resetMessage}</p>}<div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "1.5rem" }}><button className="secondary-btn" onClick={() => setResetMode(false)}>Close</button>{(resetToken || resetMethod === "question") && <button className="primary-btn" onClick={() => void completePasswordReset()}>Reset Password</button>}</div>
-        </motion.div></div>}
-      </AnimatePresence>
-      {/* Server side editor settings */}
-      <AnimatePresence>
-        {showSettingsModal && <div className="modal-backdrop"><motion.div className="recruiter-modal editor-settings-modal" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
-          <button className="modal-close" onClick={() => { setShowSettingsModal(false); setRecoveryAnswer(""); setRecoveryAnswer2(""); }} aria-label="Close"><X size={18} /></button><span className="eyebrow">EDITOR ONLY</span><h2 style={{ fontSize: "24px", fontWeight: 900, margin: "8px 0 12px" }}>Editor Settings</h2><p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: 1.5 }}>Secrets and credentials stay on the server. Email password reset requires a verified sender domain.</p>
-          <div style={{ display: "grid", gap: "12px", marginTop: "1.25rem" }}><strong>Recovery questions</strong><p style={{ color: "var(--muted)", fontSize: "12px", lineHeight: 1.5, margin: 0 }}>Both answers are hashed and stored on the server. They are not saved in browser storage or in GitHub. Both answers will be needed to recover your password.</p><label>Question 1<input type="text" autoComplete="off" value={recoveryQuestion} placeholder="Your recovery question" onChange={event => setRecoveryQuestion(event.target.value)} /></label><input type="password" autoComplete="off" value={recoveryAnswer} placeholder="Answer 1 (leave blank to keep current)" onChange={event => setRecoveryAnswer(event.target.value)} /><label>Question 2<input type="text" autoComplete="off" value={recoveryQuestion2} placeholder="What is your pet?" onChange={event => setRecoveryQuestion2(event.target.value)} /></label><input type="password" autoComplete="off" value={recoveryAnswer2} placeholder="Answer 2 (8+ chars; leave blank only if already saved)" onChange={event => setRecoveryAnswer2(event.target.value)} /><button className="secondary-btn" onClick={() => void saveRecoveryQuestion()}>Save Recovery Questions</button></div>
-          <div style={{ display: "grid", gap: "12px", borderTop: "1px solid var(--line)", paddingTop: "14px", marginTop: "18px" }}><strong>Change password</strong><input type="password" autoComplete="current-password" value={currentPasswordInput} placeholder="Current password" onChange={event => setCurrentPasswordInput(event.target.value)} /><input type="password" autoComplete="new-password" value={newPassword} placeholder="New password" onChange={event => setNewPassword(event.target.value)} /><input type="password" autoComplete="new-password" value={confirmPassword} placeholder="Confirm new password" onChange={event => setConfirmPassword(event.target.value)} /><button className="secondary-btn" onClick={() => void changeAdminPassword()}>Change Password</button></div>
-          {settingsMessage && <p role="status" style={{ color: "var(--muted)", fontSize: "13px", marginTop: "12px" }}>{settingsMessage}</p>}<div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}><button className="secondary-btn" onClick={() => { setShowSettingsModal(false); setRecoveryAnswer(""); setRecoveryAnswer2(""); }}>Close</button></div>
-        </motion.div></div>}
-      </AnimatePresence>
+      </button>
 
       {/* Recruiter Modal */}
       <AnimatePresence>
@@ -1393,9 +1370,9 @@ export default function Home() {
               </div>
 
               <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                <a className="primary-btn" href={`${BASE}/resume.pdf`} download>
+                <button className="primary-btn" type="button" onClick={() => void downloadDemoResume()}>
                   <Download size={16} /> Download Resume
-                </a>
+                </button>
                 <a className="secondary-btn" href={profileData.linkedin} target="_blank" rel="noreferrer">
                   <Linkedin size={16} /> LinkedIn
                 </a>
