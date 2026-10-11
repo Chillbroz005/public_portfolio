@@ -71,7 +71,7 @@ async function apiJson(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const response = await fetch(path, { ...options, credentials: "same-origin", headers });
-  const body = (await response.json().catch(() => ({}))) as { error?: string; [key: string]: any };
+  const body: { error?: string; [key: string]: any } = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || `Request failed (${response.status}).`);
   return body;
 }
