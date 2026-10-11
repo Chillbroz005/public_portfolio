@@ -481,7 +481,7 @@ export default function Home() {
   const downloadDemoResume = async () => {
     try {
       const resumeBytes = await generateResumePdf({
-        profile: { ...defaultProfile, phones: [...defaultProfile.phones] },
+        profile: { ...defaultProfile, phones: [...defaultProfile.phones], regions: [...defaultProfile.regions], industries: [...defaultProfile.industries], functions: [...defaultProfile.functions], achievements: [...defaultProfile.achievements] },
         experience: defaultExperience,
         skills: defaultSkills,
         software: defaultSoftware,
