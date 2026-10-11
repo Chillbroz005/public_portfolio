@@ -480,6 +480,7 @@ export default function Home() {
   // Always generate a fictional demo resume. Never expose the original resume PDF in the public demo.
   const downloadDemoResume = async () => {
     try {
+      const photoData = await loadCurrentPhotoData();
       const resumeBytes = await generateResumePdf({
         profile: { ...defaultProfile, phones: [...defaultProfile.phones], regions: [...defaultProfile.regions], industries: [...defaultProfile.industries], functions: [...defaultProfile.functions], achievements: [...defaultProfile.achievements] },
         experience: defaultExperience,
@@ -490,7 +491,7 @@ export default function Home() {
         education: defaultEducation,
         certifications: defaultCertifications,
         projects: defaultProjects
-      }, "");
+      }, photoData.dataUrl);
       const blob = new Blob([new Uint8Array(resumeBytes).buffer as ArrayBuffer], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
