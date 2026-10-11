@@ -79,7 +79,7 @@ async function apiJson(path: string, options: RequestInit = {}) {
 async function pngDataFromBlob(blob: Blob): Promise<{ dataUrl: string; base64: string }> {
   const objectUrl = URL.createObjectURL(blob);
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const loadedImage = new Image();
+    const loadedImage = document.createElement("img");
     loadedImage.onload = () => resolve(loadedImage);
     loadedImage.onerror = () => reject(new Error("Your browser could not load the profile photo."));
     loadedImage.src = objectUrl;
