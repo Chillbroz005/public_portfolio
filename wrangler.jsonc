@@ -1,19 +1,5 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "chillbroz005-portfolio",
-  "pages_build_output_dir": "./out",
-  "compatibility_date": "2026-10-10",
-  "compatibility_flags": ["nodejs_compat"],
-  "vars": {
-    "GITHUB_OWNER": "Chillbroz005",
-    "GITHUB_REPOSITORY": "public_portfolio"
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "portfolio-auth",
-      "database_id": "00000000-0000-0000-0000-000000000001",
-      "migrations_dir": "migrations"
-    }
-  ]
+  "name": "public-portfolio",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./out" }
 }
