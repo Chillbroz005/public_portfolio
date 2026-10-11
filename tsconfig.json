@@ -8,9 +8,6 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "types": [
-      "@cloudflare/workers-types"
-    ],
     "strict": true,
     "skipLibCheck": true
   }
